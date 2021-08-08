@@ -26,7 +26,7 @@
 
     <dubbo:config-center address="zookeeper://127.0.0.1:2181"/>
     <dubbo:metadata-report address="zookeeper://127.0.0.1:2181"/>
-    <dubbo:registry id="registry1" address="zookeeper://127.0.0.1:2181?registry-type=service"/>
+    <dubbo:registry id="registry1" address="redis://114.215.197.62:6379?registry-type=service"/>
 
     <dubbo:protocol name="dubbo" port="-1"/>
     <dubbo:protocol name="rest" port="-1"/>
