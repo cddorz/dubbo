@@ -277,6 +277,11 @@ public class RedisServiceDiscovery extends AbstractServiceDiscovery {
                                 continue;
                             }
                             try {
+                                if(first){
+                                    first = false;
+                                    listener.onEvent(new ServiceInstancesChangedEvent(serviceName,getInstances(serviceName)));
+                                    resetSkip();
+                                }
                                 redisClient.psubscribe(new NotifySub(),serviceName);
                             }catch (Throwable t){
                                 logger.warn("Failed to subscribe service from redis registry. cause:" + t.getMessage(),t);
