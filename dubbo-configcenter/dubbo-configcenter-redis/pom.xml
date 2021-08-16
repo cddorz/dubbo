@@ -22,10 +22,10 @@
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>dubbo-configcenter-zookeeper</artifactId>
+    <artifactId>dubbo-configcenter-redis</artifactId>
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
-    <description>The zookeeper implementation of the config-center api</description>
+    <description>The redis implementation of the config-center api</description>
 
     <dependencies>
         <dependency>

@@ -15,11 +15,6 @@ import static org.apache.dubbo.registry.Constants.REGISTER;
 import static org.apache.dubbo.registry.Constants.UNREGISTER;
 
 
-/**
- * @author hly
- * @Description: TODO
- * @create 2021-07-27 20:20
- */
 public class RedisClientUtil {
 
     private static RedisClient redisClient;

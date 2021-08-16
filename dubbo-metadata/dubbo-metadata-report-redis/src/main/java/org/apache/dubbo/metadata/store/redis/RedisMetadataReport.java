@@ -17,9 +17,12 @@
 package org.apache.dubbo.metadata.store.redis;
 
 import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.config.configcenter.ConfigItem;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.metadata.MappingChangedEvent;
+import org.apache.dubbo.metadata.MappingListener;
 import org.apache.dubbo.metadata.report.identifier.BaseMetadataIdentifier;
 import org.apache.dubbo.metadata.report.identifier.KeyTypeEnum;
 import org.apache.dubbo.metadata.report.identifier.MetadataIdentifier;
@@ -29,23 +32,19 @@ import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 import org.apache.dubbo.rpc.RpcException;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import redis.clients.jedis.HostAndPort;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisCluster;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import static org.apache.dubbo.common.constants.CommonConstants.CLUSTER_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
-import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
+import static org.apache.dubbo.common.utils.StringUtils.HYPHEN_CHAR;
 import static org.apache.dubbo.metadata.MetadataConstants.META_DATA_STORE_TAG;
+import static org.apache.dubbo.metadata.ServiceNameMapping.DEFAULT_MAPPING_GROUP;
+import static org.apache.dubbo.metadata.ServiceNameMapping.getAppNames;
 
 /**
  * RedisMetadataReport
@@ -59,6 +58,11 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     Set<HostAndPort> jedisClusterNodes;
     private int timeout;
     private String password;
+    private final static String SERVICE_APP_MAPPING = "mapping";
+
+    private Map<String, MappingDataListener> casListenerMap = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, Notifier> notifiers = new ConcurrentHashMap<>();
 
 
     public RedisMetadataReport(URL url) {
@@ -118,6 +122,79 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     @Override
     public String getServiceDefinition(MetadataIdentifier metadataIdentifier) {
         return this.getMetadata(metadataIdentifier);
+    }
+
+    @Override
+    public Set<String> getServiceAppMapping(String serviceKey, URL url){
+        String key = buildKey(DEFAULT_MAPPING_GROUP, serviceKey);
+        return getAppNames(getServiceAppNames(key));
+    }
+
+    @Override
+    public Set<String> getServiceAppMapping(String serviceKey, MappingListener listener, URL url) {
+        String key = buildKey(DEFAULT_MAPPING_GROUP,serviceKey);
+        if( null == casListenerMap.get(key)){
+            addCasServiceMappingListener(key,listener);
+        }
+        return getAppNames(getServiceAppNames(key));
+    }
+
+    @Override
+    public boolean registerServiceAppMapping(String key, String group, String content, Object ticket){
+        try {
+            String keyPath = buildKey(group,key);
+            return doRegisterServiceAppMapping(keyPath,content, ticket);
+        }catch (Exception e){
+            logger.warn("redis publishConfigCas failed.", e);
+            return false;
+        }
+    }
+
+    @Override
+    public ConfigItem getConfigItem(String key, String group) {
+        String pathKey = buildKey(group,key);
+        String content = getConfig(pathKey);
+        return new ConfigItem(content,content);
+    }
+
+    public void addCasServiceMappingListener(String key,MappingListener listener){
+        MappingDataListener mappingDataListener = casListenerMap.computeIfAbsent(key, k -> new MappingDataListener(key));
+        mappingDataListener.addListener(listener);
+        Notifier notifier = notifiers.get(key);
+        if(notifier == null){
+            Notifier newnotifier = new Notifier(key);
+            notifiers.putIfAbsent(key,newnotifier);
+            notifier = notifiers.get(key);
+            if(notifier == newnotifier){
+                notifier.start();
+            }
+        }
+    }
+
+    private String getConfig(String key){
+        if (pool != null) {
+            return getConfigStandalone(key);
+        }else {
+            return getConfigInCluster(key);
+        }
+    }
+
+    private String getConfigStandalone(String key){
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.get(key);
+        }catch (Throwable e){
+            logger.error("Failed to get content from redis, cause: " + e.getMessage(),e);
+            throw new RpcException("Failed to get content from redis, cause: " + e.getMessage(),e);
+        }
+    }
+
+    private String getConfigInCluster(String key){
+        try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
+            return jedisCluster.get(key);
+        } catch (Throwable e) {
+            logger.error("Failed to get content from redis cluster, cause: " + e.getMessage(),e);
+            throw new RpcException("Failed to get content from redis cluster, cause: " + e.getMessage(),e);
+        }
     }
 
     private void storeMetadata(BaseMetadataIdentifier metadataIdentifier, String v) {
@@ -198,4 +275,177 @@ public class RedisMetadataReport extends AbstractMetadataReport {
         }
     }
 
-}
+    private boolean doRegisterServiceAppMapping(String key, String content,Object ticket){
+        if(pool != null){
+            return registerServiceAppMappingStandalone(key,content,ticket);
+        }else {
+            return registerServiceAppMappingInCluster(key,content,ticket);
+        }
+    }
+
+    private boolean registerServiceAppMappingInCluster(String key,  String content, Object ticket){
+        try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
+            jedisCluster.publish(key,SERVICE_APP_MAPPING);
+            Reader reader = new InputStreamReader(RedisMetadataReport.class.getResourceAsStream("/JedisCallLua.lua"));
+            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
+            String ticketToString = ticket.toString();
+            List<String> keys = new ArrayList<String>();
+            keys.add(key);
+            List<String> values = new ArrayList<String>();
+            values.add(ticketToString);
+            String newValue = ticketToString + "," + content;
+            values.add(newValue);
+            Object result = jedisCluster.eval(luaStr, keys,values);
+            int tag = (int) result;
+            return tag != 0;
+        }catch (Throwable e){
+            throw new RpcException("Failed to register serviceAppMapping key:" + key +  "from redis, cause: " + e.getMessage() + e);
+        }
+    }
+
+    private boolean registerServiceAppMappingStandalone(String key,  String content,Object ticket){
+        try (Jedis jedis = pool.getResource()){
+            jedis.publish(key,SERVICE_APP_MAPPING);
+            Reader reader = new InputStreamReader(RedisMetadataReport.class.getResourceAsStream("/JedisCallLua.lua"));
+            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
+            String ticketToString = ticket.toString();
+            List<String> keys = new ArrayList<String>();
+            keys.add(key);
+            List<String> values = new ArrayList<String>();
+            values.add(ticketToString);
+            String newValue = ticketToString + "," + content;
+            values.add(newValue);
+            Object result = jedis.eval(luaStr, keys,values);
+            int tag = (int) result;
+            return tag != 0;
+        }catch (Throwable e){
+            throw new RpcException("Failed to register serviceAppMapping key:" + key + "from redis, cause: " + e.getMessage() + e);
+        }
+    }
+
+    private String getServiceAppNames(String key){
+        if (pool != null){
+            return getAppNamesStandalone(key);
+        }else {
+            return getAppNamesInCluster(key);
+        }
+    }
+
+    private String getAppNamesInCluster(String key){
+        try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
+            return jedisCluster.get(key);
+        }catch (Throwable e){
+            throw new RpcException("Failed to get key:" + key + "from redis, cause: " + e.getMessage() + e);
+        }
+    }
+
+    private String getAppNamesStandalone(String key){
+        try (Jedis jedis = pool.getResource()){
+            return jedis.get(key);
+        }catch (Throwable e){
+            throw new RpcException("Failed to get key:" + key + "from redis, cause: " + e.getMessage() + e);
+        }
+    }
+
+    private String buildKey(String group,String serviceKey){
+        return group + HYPHEN_CHAR + serviceKey;
+    }
+
+    private void subscribe(String key){
+        if( pool != null){
+            subscribeStandalone(key);
+        }else {
+            subscribeInCluster(key);
+        }
+    }
+
+    private void subscribeStandalone(String key){
+        try (Jedis jedis = pool.getResource()){
+            jedis.subscribe(new NotifySub(key),key);
+        }catch (Throwable e){
+            logger.error("Failed to subscribe, key: " + key + ", cause: " + e.getMessage(),e);
+        }
+    }
+
+    private void subscribeInCluster(String key){
+        try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
+            jedisCluster.subscribe(new NotifySub(key),key);
+        }catch (Throwable e){
+            logger.error("Failed to subscribe, key: " + key + ", cause: " + e.getMessage(),e);
+        }
+    }
+
+    private static class MappingDataListener {
+
+        private String serviceKey;
+        private Set<MappingListener> listeners;
+
+        public MappingDataListener(String serviceKey) {
+            this.serviceKey = serviceKey;
+            this.listeners = new HashSet<>();
+        }
+
+        public void addListener(MappingListener listener) {
+            this.listeners.add(listener);
+        }
+      }
+
+    private class NotifySub extends JedisPubSub {
+
+        private final MappingDataListener mappingDataListener;
+
+        public NotifySub(String key){
+            this.mappingDataListener = casListenerMap.computeIfAbsent(key, k -> new MappingDataListener(key));
+        }
+
+        @Override
+        public void onMessage(String key, String msg) {
+            if (logger.isInfoEnabled()) {
+                logger.info("redis event: " + key + " = " + msg);
+            }
+            if(msg.equals(SERVICE_APP_MAPPING)){
+                try {
+                    Set<String> apps = getAppNames(getServiceAppNames(key));
+                    MappingChangedEvent event = new MappingChangedEvent(key,apps);
+                    mappingDataListener.listeners.forEach(mappingListener -> mappingListener.onEvent(event));
+                }catch (Throwable r){
+                    logger.warn(r.getMessage(),r);
+                }
+            }
+        }
+        @Override
+        public void onPMessage(String pattern, String key, String msg) {
+            onMessage(key, msg);
+        }
+      }
+      private class Notifier extends Thread{
+
+        private String key;
+
+        private final MappingDataListener mappingDataListener;
+
+        private volatile boolean running = true;
+
+        public Notifier(String key) {
+              super.setDaemon(true);
+              super.setName("DubboRedisMetadataSubscribe");
+              this.key = key;
+              this.mappingDataListener = casListenerMap.computeIfAbsent(key, k -> new MappingDataListener(key));
+          }
+
+        @Override
+        public void run(){
+            while (running){
+                try {
+                    subscribe(key);
+                }catch (Throwable e){
+                    logger.warn(e.getMessage(),e);
+                }
+            }
+        }
+
+        public void shutdown(){
+            running = false;
+        }
+      }
+    }
