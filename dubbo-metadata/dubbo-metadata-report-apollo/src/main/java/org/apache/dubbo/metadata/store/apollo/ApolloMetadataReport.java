@@ -9,15 +9,20 @@ import com.ctrip.framework.apollo.core.enums.ConfigFileFormat;
 import com.ctrip.framework.apollo.enums.ConfigSourceType;
 import com.ctrip.framework.apollo.model.ConfigChange;
 import com.ctrip.framework.apollo.model.ConfigChangeEvent;
+import com.ctrip.framework.apollo.openapi.client.ApolloOpenApiClient;
+import com.ctrip.framework.apollo.openapi.dto.OpenItemDTO;
+import com.google.gson.Gson;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.metadata.MappingChangedEvent;
 import org.apache.dubbo.metadata.MappingListener;
+import org.apache.dubbo.metadata.MetadataInfo;
 import org.apache.dubbo.metadata.report.identifier.*;
 import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 
+import java.security.cert.TrustAnchor;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -39,22 +44,30 @@ public class ApolloMetadataReport extends AbstractMetadataReport {
     private static final String APOLLO_PROTOCOL_PREFIX = "http://";
     private static final String APOLLO_APPLICATION_KEY = "application";
     private static final String APOLLO_APPID_KEY = "app.id";
+    private static final String APOLLO_PORTALURL = "apollo.portalUrl";
+    private static final String APOLLO_TOKEN = "apollo.token";
+    private static final String APOLLO_USER_ID = "apollo.userId";
 
 
     private URL url;
     private Config dubboConfig;
     private ConfigFile dubboConfigFile;
+    private ApolloOpenApiClient client;
+    private String configEnv = url.getParameter(APOLLO_ENV_KEY);
+    private String configAddr = getAddressWithProtocolPrefix(url);
+    private String configCluster = url.getParameter(CLUSTER_KEY);
+    private String configAppId = url.getParameter(APOLLO_APPID_KEY);
+    private String configNamespace = url.getParameter(APOLLO_APPLICATION_KEY);
 
     private ConcurrentMap<String, ApolloListener> casListeners = new ConcurrentHashMap<>();
+
+    private Gson gson = new Gson();
+
 
     public ApolloMetadataReport(URL url) {
         super(url);
         this.url = url;
         // Instead of using Dubbo's configuration, I would suggest use the original configuration method Apollo provides.
-        String configEnv = url.getParameter(APOLLO_ENV_KEY);
-        String configAddr = getAddressWithProtocolPrefix(url);
-        String configCluster = url.getParameter(CLUSTER_KEY);
-        String configAppId = url.getParameter(APOLLO_APPID_KEY);
         if (StringUtils.isEmpty(System.getProperty(APOLLO_ENV_KEY)) && configEnv != null) {
             System.setProperty(APOLLO_ENV_KEY, configEnv);
         }
@@ -72,6 +85,15 @@ public class ApolloMetadataReport extends AbstractMetadataReport {
         String apolloNamespace = StringUtils.isEmpty(namespace) ? url.getGroup(DEFAULT_ROOT) : namespace;
         dubboConfig = ConfigService.getConfig(apolloNamespace);
         dubboConfigFile = ConfigService.getConfigFile(apolloNamespace, ConfigFileFormat.Properties);
+
+        // local protalURL
+        String portalUrl = url.getParameter(APOLLO_PORTALURL);
+        String token = url.getParameter(APOLLO_TOKEN);
+        ApolloOpenApiClient client = ApolloOpenApiClient.newBuilder()
+                                                        .withPortalUrl(portalUrl)
+                                                        .withToken(token)
+                                                        .build();
+
 
         // Decide to fail or to continue when failed to connect to remote server.
         boolean check = url.getParameter(CHECK_KEY, true);
@@ -123,24 +145,52 @@ public class ApolloMetadataReport extends AbstractMetadataReport {
         return dubboConfig.getProperty(key, null);
     }
 
+    private void storeMetadata(BaseMetadataIdentifier metadataIdentifier,String v){
+        OpenItemDTO openItemDTO = new OpenItemDTO();
+        openItemDTO.setKey(buildKey(metadataIdentifier));
+        openItemDTO.setValue(v);
+        openItemDTO.setDataChangeCreatedBy(APOLLO_USER_ID);
+        openItemDTO.setComment("store metadata");
+        client.createItem(configAppId,configEnv,configCluster,configNamespace,openItemDTO);
+    }
+
     @Override
     protected void doStoreProviderMetadata(MetadataIdentifier providerMetadataIdentifier, String serviceDefinitions) {
-
+        storeMetadata(providerMetadataIdentifier,serviceDefinitions);
     }
 
     @Override
     protected void doStoreConsumerMetadata(MetadataIdentifier consumerMetadataIdentifier, String serviceParameterString) {
-
+        storeMetadata(consumerMetadataIdentifier,serviceParameterString);
     }
 
     @Override
     protected void doSaveMetadata(ServiceMetadataIdentifier metadataIdentifier, URL url) {
-
+        OpenItemDTO openItemDTO = new OpenItemDTO();
+        openItemDTO.setKey(buildKey(metadataIdentifier));
+        openItemDTO.setValue(URL.encode(url.toFullString()));
+        openItemDTO.setDataChangeCreatedBy("apollo");
+        openItemDTO.setComment("doSaveMetadata");
+        client.createItem(configAppId,configEnv,configCluster,configNamespace,openItemDTO);
     }
 
     @Override
     protected void doRemoveMetadata(ServiceMetadataIdentifier metadataIdentifier) {
+        client.removeItem(configAppId,configEnv,configCluster,configNamespace,buildKey(metadataIdentifier),APOLLO_USER_ID);
+    }
 
+    @Override
+    public void publishAppMetadata(SubscriberMetadataIdentifier identifier, MetadataInfo metadataInfo) {
+        String key = buildKey(identifier);
+        if(StringUtils.isBlank(dubboConfig.getProperty(key,null))){
+            storeMetadata(identifier,gson.toJson(metadataInfo));
+        }
+    }
+
+    @Override
+    public MetadataInfo getAppMetadata(SubscriberMetadataIdentifier identifier, Map<String, String> instanceMetadata) {
+        String content = dubboConfig.getProperty(buildKey(identifier),null);
+        return gson.fromJson(content, MetadataInfo.class);
     }
 
     @Override
@@ -155,7 +205,7 @@ public class ApolloMetadataReport extends AbstractMetadataReport {
 
     @Override
     protected void doSaveSubscriberData(SubscriberMetadataIdentifier subscriberMetadataIdentifier, String urlListStr) {
-
+        storeMetadata(subscriberMetadataIdentifier,urlListStr);
     }
 
     @Override
@@ -171,6 +221,25 @@ public class ApolloMetadataReport extends AbstractMetadataReport {
             addCasServiceMappingListener(path,listener);
         }
         return getAppNames(dubboConfig.getProperty(path,null));
+    }
+
+
+    @Override
+    public boolean registerServiceAppMapping(String key, String group, String content, Object ticket) {
+        try {
+            String path = buildPath(group,key);
+            OpenItemDTO openItemDTO = new OpenItemDTO();
+            openItemDTO.setKey(path);
+            openItemDTO.setValue(content);
+            openItemDTO.setDataChangeCreatedBy(APOLLO_USER_ID);
+            openItemDTO.setComment("registerServiceAppMapping");
+            client.createOrUpdateItem(configAppId,configEnv,configCluster,configNamespace,openItemDTO);
+            return true;
+        }catch (Throwable e){
+            logger.warn("Failed to register mapping from apollo.",e);
+            return false;
+        }
+
     }
 
     @Override
