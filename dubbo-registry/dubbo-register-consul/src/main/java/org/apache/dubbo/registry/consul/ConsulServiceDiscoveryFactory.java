@@ -24,7 +24,7 @@ public class ConsulServiceDiscoveryFactory extends AbstractServiceDiscoveryFacto
 
     @Override
     protected ServiceDiscovery createDiscovery(URL registryURL) {
-        return new ConsulServiceDiscovery();
+        return new ConsulServiceDiscovery(registryURL);
     }
 
 }
