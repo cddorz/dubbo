@@ -168,6 +168,11 @@ public class RedisServiceDiscovery extends AbstractServiceDiscovery {
     }
 
     @Override
+    public URL getUrl() {
+        return registryURL;
+    }
+
+    @Override
     public void addServiceInstancesChangedListener(ServiceInstancesChangedListener listener)
         throws NullPointerException, IllegalArgumentException{
         this.listener = listener;

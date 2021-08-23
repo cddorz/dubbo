@@ -38,7 +38,18 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
 
     private Map<String, ConfigurationDataLisentner> casListenerMap = new ConcurrentHashMap<>();
 
-
+    private static final String luaStr = "local old redis.call(\"\"get\"\", KEYS[1])\n" +
+        "if old then\n" +
+        "    if old == ARGV[1] then\n" +
+        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    return 1\n" +
+        "    else\n" +
+        "    return 0\n" +
+        "    end\n" +
+        "else\n" +
+        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    return 1\n" +
+        "end";
 
 
     RedisDynamicConfiguration(URL url){
@@ -127,8 +138,6 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
     private boolean registerConfigCasStandalone(String key,String content,Object ticket){
         try (Jedis jedis = pool.getResource()){
             jedis.publish(key,PUBLISH);
-            Reader reader = new InputStreamReader(RedisDynamicConfiguration.class.getResourceAsStream("/JedisCallLua.lua"));
-            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
             String ticketToString = ticket.toString();
             List<String> keys = new ArrayList<>();
             keys.add(key);
@@ -147,8 +156,6 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
     private boolean registerConfigCasInCluster(String key,String content,Object ticket){
         try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
             jedisCluster.publish(key,PUBLISH);
-            Reader reader = new InputStreamReader(RedisDynamicConfiguration.class.getResourceAsStream("/JedisCallLua.lua"));
-            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
             String ticketToString = ticket.toString();
             List<String> keys = new ArrayList<String>();
             keys.add(key);

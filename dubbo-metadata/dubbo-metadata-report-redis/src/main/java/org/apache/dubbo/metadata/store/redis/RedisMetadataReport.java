@@ -64,6 +64,19 @@ public class RedisMetadataReport extends AbstractMetadataReport {
 
     private final ConcurrentMap<String, Notifier> notifiers = new ConcurrentHashMap<>();
 
+    private static final String luaStr = "local old redis.call(\"\"get\"\", KEYS[1])\n" +
+        "if old then\n" +
+        "    if old == ARGV[1] then\n" +
+        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    return 1\n" +
+        "    else\n" +
+        "    return 0\n" +
+        "    end\n" +
+        "else\n" +
+        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    return 1\n" +
+        "end";
+
 
     public RedisMetadataReport(URL url) {
         super(url);
@@ -286,8 +299,6 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     private boolean registerServiceAppMappingInCluster(String key,  String content, Object ticket){
         try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
             jedisCluster.publish(key,SERVICE_APP_MAPPING);
-            Reader reader = new InputStreamReader(RedisMetadataReport.class.getResourceAsStream("/JedisCallLua.lua"));
-            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
             String ticketToString = ticket.toString();
             List<String> keys = new ArrayList<String>();
             keys.add(key);
@@ -306,8 +317,6 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     private boolean registerServiceAppMappingStandalone(String key,  String content,Object ticket){
         try (Jedis jedis = pool.getResource()){
             jedis.publish(key,SERVICE_APP_MAPPING);
-            Reader reader = new InputStreamReader(RedisMetadataReport.class.getResourceAsStream("/JedisCallLua.lua"));
-            String luaStr = org.apache.commons.io.IOUtils.toString(reader);
             String ticketToString = ticket.toString();
             List<String> keys = new ArrayList<String>();
             keys.add(key);
