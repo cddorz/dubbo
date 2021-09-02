@@ -30,6 +30,7 @@ public class DemoServiceImpl implements DemoService {
     @Override
     public String sayHello(String name) {
         logger.info("Hello " + name + ", request from consumer: " + RpcContext.getServiceContext().getRemoteAddress());
+        System.out.println("Hello " + name + ", request from consumer: " + RpcContext.getServiceContext().getRemoteAddress());
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -40,6 +41,7 @@ public class DemoServiceImpl implements DemoService {
 
     @Override
     public CompletableFuture<String> sayHelloAsync(String name) {
+        logger.info("Hello " + name + ", request from consumer: " + RpcContext.getServiceContext().getRemoteAddress());
         CompletableFuture<String> cf = CompletableFuture.supplyAsync(() -> {
 //            try {
 //                Thread.sleep(1000);

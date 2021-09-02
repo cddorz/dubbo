@@ -10,6 +10,7 @@ import org.apache.dubbo.common.utils.ExecutorUtil;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
 import org.apache.dubbo.registry.client.AbstractServiceDiscovery;
 
+import org.apache.dubbo.registry.client.DefaultServiceInstance;
 import org.apache.dubbo.registry.client.ServiceInstance;
 import org.apache.dubbo.registry.client.event.ServiceInstancesChangedEvent;
 import org.apache.dubbo.registry.client.event.listener.ServiceInstancesChangedListener;
@@ -161,7 +162,7 @@ public class RedisServiceDiscovery extends AbstractServiceDiscovery {
         Iterator<String> it =serviceInstanceSet.iterator();
         while (it.hasNext()){
             String serviceInstanceToString = it.next();
-            ServiceInstance serviceInstance = gson.fromJson(serviceInstanceToString,ServiceInstance.class);
+            ServiceInstance serviceInstance = gson.fromJson(serviceInstanceToString, DefaultServiceInstance.class);
             serviceInstances.add(serviceInstance);
         }
         return serviceInstances;

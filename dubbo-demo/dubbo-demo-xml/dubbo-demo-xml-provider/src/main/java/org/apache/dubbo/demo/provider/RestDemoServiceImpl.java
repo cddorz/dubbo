@@ -19,15 +19,19 @@ package org.apache.dubbo.demo.provider;
 
 import org.apache.dubbo.demo.RestDemoService;
 import org.apache.dubbo.rpc.RpcContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 public class RestDemoServiceImpl implements RestDemoService {
+    private static final Logger logger = LoggerFactory.getLogger(DemoServiceImpl.class);
     private static Map<String, Object> context;
     private boolean called;
 
     public String sayHello(String name) {
         called = true;
+        logger.info("Hello " + "Rest" + ", request from consumer: " + RpcContext.getServiceContext().getRemoteAddress());
         return "Hello, " + name;
     }
 

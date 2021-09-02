@@ -27,6 +27,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPubSub;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,7 +44,7 @@ public class MonoRedisClient extends AbstractRedisClient implements RedisClient 
     public MonoRedisClient(URL url) {
         super(url);
         jedisPool = new JedisPool(getConfig(), url.getHost(), url.getPort(),
-            url.getParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT), url.getPassword());
+            url.getParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT));
     }
 
     @Override
@@ -74,8 +75,14 @@ public class MonoRedisClient extends AbstractRedisClient implements RedisClient 
     public Set<String> keys() {
         Jedis jedis = jedisPool.getResource();
         Set<String> sets = jedis.keys("*");
+        Set<String> res = new HashSet<>();
+        for(String ans : sets){
+            if(jedis.type(ans) == "hash"){
+                res.add(ans);
+            }
+        }
         jedis.close();
-        return sets;
+        return res;
     }
 
     @Override

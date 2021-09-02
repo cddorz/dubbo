@@ -17,13 +17,18 @@
 package org.apache.dubbo.demo.provider;
 
 import org.apache.dubbo.demo.GreetingService;
+import org.apache.dubbo.rpc.RpcContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  */
 public class GreetingServiceImpl implements GreetingService {
+    private static final Logger logger = LoggerFactory.getLogger(DemoServiceImpl.class);
     @Override
     public String hello() {
+        logger.info("Hello " + "greetings" + ", request from consumer: " + RpcContext.getServiceContext().getRemoteAddress());
         return "Greetings!";
     }
 }

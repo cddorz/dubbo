@@ -138,16 +138,29 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
     private boolean registerConfigCasStandalone(String key,String content,Object ticket){
         try (Jedis jedis = pool.getResource()){
             jedis.publish(key,PUBLISH);
-            String ticketToString = ticket.toString();
-            List<String> keys = new ArrayList<>();
-            keys.add(key);
-            List<String> values = new ArrayList<>();
-            values.add(ticketToString);
-            String newValue = ticketToString + "," + content;
-            values.add(newValue);
-            Object result = jedis.eval(luaStr, keys,values);
-            int tag = (int) result;
-            return tag != 0;
+            if(ticket != null){
+                String ticketToString = ticket.toString();
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = ticketToString + "," + content;
+                values.add(newValue);
+                Object result = jedis.eval(luaStr, keys,values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }else{
+                String ticketToString = "";
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = content;
+                values.add(newValue);
+                Object result = jedis.eval(luaStr, keys, values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }
         }catch (Throwable e){
             throw new RpcException("Failed to publish config key:" + key + "from redis, cause: " + e.getMessage() + e);
         }
@@ -156,16 +169,29 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
     private boolean registerConfigCasInCluster(String key,String content,Object ticket){
         try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
             jedisCluster.publish(key,PUBLISH);
-            String ticketToString = ticket.toString();
-            List<String> keys = new ArrayList<String>();
-            keys.add(key);
-            List<String> values = new ArrayList<String>();
-            values.add(ticketToString);
-            String newValue = ticketToString + "," + content;
-            values.add(newValue);
-            Object result = jedisCluster.eval(luaStr, keys,values);
-            int tag = (int) result;
-            return tag != 0;
+            if(ticket != null){
+                String ticketToString = ticket.toString();
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = ticketToString + "," + content;
+                values.add(newValue);
+                Object result = jedisCluster.eval(luaStr, keys,values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }else {
+                String ticketToString = "";
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = content;
+                values.add(newValue);
+                Object result = jedisCluster.eval(luaStr, keys, values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }
         }catch (Throwable e){
             throw new RpcException("Failed to publish config key:" + key +  "from redis, cause: " + e.getMessage() + e);
         }

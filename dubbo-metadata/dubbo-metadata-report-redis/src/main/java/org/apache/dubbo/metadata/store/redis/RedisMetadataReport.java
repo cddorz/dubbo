@@ -64,16 +64,16 @@ public class RedisMetadataReport extends AbstractMetadataReport {
 
     private final ConcurrentMap<String, Notifier> notifiers = new ConcurrentHashMap<>();
 
-    private static final String luaStr = "local old redis.call(\"\"get\"\", KEYS[1])\n" +
+    private static final String luaStr = "local old redis.call(\"get\", KEYS[1])\n" +
         "if old then\n" +
         "    if old == ARGV[1] then\n" +
-        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    redis.call(\"set\", KEYS[1], ARGV[2])\n" +
         "    return 1\n" +
         "    else\n" +
         "    return 0\n" +
         "    end\n" +
         "else\n" +
-        "    redis.call(\"\"set\"\", KEYS[1], ARGV[2])\n" +
+        "    redis.call(\"set\", KEYS[1], ARGV[2])\n" +
         "    return 1\n" +
         "end";
 
@@ -156,7 +156,7 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     public boolean registerServiceAppMapping(String key, String group, String content, Object ticket){
         try {
             String keyPath = buildKey(group,key);
-            return doRegisterServiceAppMapping(keyPath,content, ticket);
+            return doRegisterServiceAppMapping(keyPath, content, ticket);
         }catch (Exception e){
             logger.warn("redis publishConfigCas failed.", e);
             return false;
@@ -299,34 +299,60 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     private boolean registerServiceAppMappingInCluster(String key,  String content, Object ticket){
         try (JedisCluster jedisCluster = new JedisCluster(jedisClusterNodes, timeout, timeout, 2, password, new GenericObjectPoolConfig())) {
             jedisCluster.publish(key,SERVICE_APP_MAPPING);
-            String ticketToString = ticket.toString();
-            List<String> keys = new ArrayList<String>();
-            keys.add(key);
-            List<String> values = new ArrayList<String>();
-            values.add(ticketToString);
-            String newValue = ticketToString + "," + content;
-            values.add(newValue);
-            Object result = jedisCluster.eval(luaStr, keys,values);
-            int tag = (int) result;
-            return tag != 0;
+            if(ticket != null){
+                String ticketToString = ticket.toString();
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = ticketToString + "," + content;
+                values.add(newValue);
+                Object result = jedisCluster.eval(luaStr, keys,values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }else{
+                String ticketToString = "";
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = content;
+                values.add(newValue);
+                Object result = jedisCluster.eval(luaStr, keys,values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }
         }catch (Throwable e){
             throw new RpcException("Failed to register serviceAppMapping key:" + key +  "from redis, cause: " + e.getMessage() + e);
         }
     }
 
-    private boolean registerServiceAppMappingStandalone(String key,  String content,Object ticket){
+    private boolean registerServiceAppMappingStandalone(String key, String content, Object ticket){
         try (Jedis jedis = pool.getResource()){
             jedis.publish(key,SERVICE_APP_MAPPING);
-            String ticketToString = ticket.toString();
-            List<String> keys = new ArrayList<String>();
-            keys.add(key);
-            List<String> values = new ArrayList<String>();
-            values.add(ticketToString);
-            String newValue = ticketToString + "," + content;
-            values.add(newValue);
-            Object result = jedis.eval(luaStr, keys,values);
-            int tag = (int) result;
-            return tag != 0;
+            if(ticket != null){
+                String ticketToString = ticket.toString();
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = ticketToString + "," + content;
+                values.add(newValue);
+                Object result = jedis.eval(luaStr, keys,values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }else{
+                String ticketToString = "";
+                List<String> keys = new ArrayList<String>();
+                keys.add(key);
+                List<String> values = new ArrayList<String>();
+                values.add(ticketToString);
+                String newValue = content;
+                values.add(newValue);
+                Object result = jedis.eval(luaStr, keys, values);
+                Long tag = (Long) result;
+                return tag != 0;
+            }
         }catch (Throwable e){
             throw new RpcException("Failed to register serviceAppMapping key:" + key + "from redis, cause: " + e.getMessage() + e);
         }
@@ -372,7 +398,7 @@ public class RedisMetadataReport extends AbstractMetadataReport {
         try (Jedis jedis = pool.getResource()){
             jedis.subscribe(new NotifySub(key),key);
         }catch (Throwable e){
-            logger.error("Failed to subscribe, key: " + key + ", cause: " + e.getMessage(),e);
+            logger.error("Fa iled to subscribe, key: " + key + ", cause: " + e.getMessage(),e);
         }
     }
 
