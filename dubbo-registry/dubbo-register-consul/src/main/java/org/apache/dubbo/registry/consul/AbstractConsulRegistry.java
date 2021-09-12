@@ -1,3 +1,5 @@
+package org.apache.dubbo.registry.consul;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -14,17 +16,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dubbo.registry.consul;
 
-import org.apache.dubbo.common.URL;
-import org.apache.dubbo.registry.client.AbstractServiceDiscoveryFactory;
-import org.apache.dubbo.registry.client.ServiceDiscovery;
+/**
+ * @author cvictory ON 2019-08-02
+ */
+public class AbstractConsulRegistry {
 
-public class ConsulServiceDiscoveryFactory extends AbstractServiceDiscoveryFactory {
+    static final String SERVICE_TAG = "dubbo";
+    static final String URL_META_KEY = "url";
+    static final String SERVICEINSTANCE_META_KEY = "serviceInstance";
+    static final String CHECK_PASS_INTERVAL = "consul-check-pass-interval";
+    static final String DEREGISTER_AFTER = "consul-deregister-critical-service-after";
 
-    @Override
-    protected ServiceDiscovery createDiscovery(URL registryURL) {
-        return new ConsulServiceDiscovery();
-    }
+    static final long DEFAULT_CHECK_PASS_INTERVAL = 16000L;
+    // default deregister critical server after
+    static final String DEFAULT_DEREGISTER_TIME = "20s";
 
+    static final int PERIOD_DENOMINATOR = 8;
+    static final int ONE_THOUSAND = 1000;
 }

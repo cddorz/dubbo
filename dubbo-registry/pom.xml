@@ -39,5 +39,6 @@
         <module>dubbo-registry-dns</module>
         <module>dubbo-registry-xds</module>
         <module>dubbo-registry-redis</module>
+        <module>dubbo-register-consul</module>
     </modules>
 </project>

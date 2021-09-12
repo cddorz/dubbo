@@ -14,25 +14,24 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>org.apache.dubbo</groupId>
-        <artifactId>dubbo-registry</artifactId>
+        <artifactId>dubbo-metadata</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>dubbo-registry-consul</artifactId>
-    <packaging>jar</packaging>
-    <name>${project.artifactId}</name>
-    <description>The consul registry module of dubbo project</description>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>dubbo-metadata-report-consul</artifactId>
     <properties>
-        <skip_maven_deploy>false</skip_maven_deploy>
+        <jedis.version>2.9.0</jedis.version>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.dubbo</groupId>
-            <artifactId>dubbo-registry-api</artifactId>
+            <artifactId>dubbo-metadata-api</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>

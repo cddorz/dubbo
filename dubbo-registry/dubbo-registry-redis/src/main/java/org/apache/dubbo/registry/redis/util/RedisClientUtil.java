@@ -36,7 +36,6 @@ public class RedisClientUtil {
         String key = serviceInstance.getServiceName();
         Gson gson = new GsonBuilder().create();
         String value = gson.toJson(serviceInstance);
-        ServiceInstance serviceInstance1 = gson.fromJson(value, DefaultServiceInstance.class);
         String expire = String.valueOf(System.currentTimeMillis() + expirePeriod);
         redisClient.hset(key, value, expire);
         redisClient.publish(key, REGISTER);

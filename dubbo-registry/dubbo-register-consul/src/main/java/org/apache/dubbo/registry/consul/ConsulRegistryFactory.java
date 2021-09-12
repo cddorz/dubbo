@@ -1,3 +1,5 @@
+package org.apache.dubbo.registry.consul;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -14,17 +16,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dubbo.registry.consul;
 
 import org.apache.dubbo.common.URL;
-import org.apache.dubbo.registry.client.AbstractServiceDiscoveryFactory;
-import org.apache.dubbo.registry.client.ServiceDiscovery;
+import org.apache.dubbo.registry.Registry;
+import org.apache.dubbo.registry.support.AbstractRegistryFactory;
 
-public class ConsulServiceDiscoveryFactory extends AbstractServiceDiscoveryFactory {
-
+/**
+ * registry center factory implementation for consul
+ */
+public class ConsulRegistryFactory extends AbstractRegistryFactory {
     @Override
-    protected ServiceDiscovery createDiscovery(URL registryURL) {
-        return new ConsulServiceDiscovery();
+    protected Registry createRegistry(URL url) {
+        return new ConsulRegistry(url);
     }
-
 }
