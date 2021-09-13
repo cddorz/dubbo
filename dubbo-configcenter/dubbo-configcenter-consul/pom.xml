@@ -18,23 +18,24 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.apache.dubbo</groupId>
-        <artifactId>dubbo-parent</artifactId>
+        <artifactId>dubbo-configcenter</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>dubbo-configcenter</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>dubbo-configcenter-consul</artifactId>
+    <packaging>jar</packaging>
     <name>${project.artifactId}</name>
-    <description>The service config-center module of the Dubbo project</description>
-    <properties>
-        <skip_maven_deploy>false</skip_maven_deploy>
-    </properties>
+    <description>The consul implementation of the config-center api</description>
 
-    <modules>
-        <module>dubbo-configcenter-zookeeper</module>
-        <module>dubbo-configcenter-apollo</module>
-        <module>dubbo-configcenter-nacos</module>
-        <module>dubbo-configcenter-redis</module>
-        <module>dubbo-configcenter-consul</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-common</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.ecwid.consul</groupId>
+            <artifactId>consul-api</artifactId>
+        </dependency>
+    </dependencies>
 </project>
