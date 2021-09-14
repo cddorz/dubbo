@@ -236,7 +236,7 @@ public class ConsulServiceDiscovery extends AbstractServiceDiscovery {
     private NewService buildService(ServiceInstance serviceInstance){
         NewService service = new NewService();
         service.setName(serviceInstance.getServiceName());
-        service.setAddress(serviceInstance.getAddress());
+        service.setAddress(serviceInstance.getHost());
         service.setPort(serviceInstance.getPort());
         service.setId(buildId(serviceInstance));
         service.setTags(buildTags(serviceInstance));
@@ -245,7 +245,7 @@ public class ConsulServiceDiscovery extends AbstractServiceDiscovery {
     }
 
     private String buildId(ServiceInstance serviceInstance){
-        return Integer.toString(serviceInstance.hashCode());
+        return serviceInstance.getServiceName() + "-" + serviceInstance.getAddress();
     }
 
     private List<String> buildTags(ServiceInstance serviceInstance){
@@ -265,6 +265,7 @@ public class ConsulServiceDiscovery extends AbstractServiceDiscovery {
             .forEach(tags::add);
 
         tags.addAll(registeringTags);
+        tags.add(SERVICE_TAG);
         return tags;
     }
 
@@ -280,7 +281,6 @@ public class ConsulServiceDiscovery extends AbstractServiceDiscovery {
             .setTag(SERVICE_TAG)
             .setQueryParams(new QueryParams(watchTimeout, index))
             .setPassing(true)
-            .setToken(token)
             .build();
         return client.getHealthServices(service, request);
     }
