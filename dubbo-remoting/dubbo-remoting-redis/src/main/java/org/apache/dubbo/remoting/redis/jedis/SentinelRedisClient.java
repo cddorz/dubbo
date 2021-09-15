@@ -95,6 +95,14 @@ public class SentinelRedisClient extends AbstractRedisClient implements RedisCli
     }
 
     @Override
+    public Long hdel(String key) {
+        Jedis jedis = sentinelPool.getResource();
+        Long result = jedis.del(key);
+        jedis.close();
+        return result;
+    }
+
+    @Override
     public Set<String> scan(String pattern) {
         Jedis jedis = sentinelPool.getResource();
         Set<String> result = scan(jedis, pattern);

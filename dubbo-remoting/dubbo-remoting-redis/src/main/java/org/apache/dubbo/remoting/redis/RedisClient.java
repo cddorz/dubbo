@@ -37,6 +37,8 @@ public interface RedisClient {
 
     Long hdel(final String key, final String... fields);
 
+    Long hdel(final String key);
+
     Set<String> scan(String pattern);
 
     Map<String, String> hgetAll(String key);

@@ -156,6 +156,7 @@
         <module>dubbo-registry/dubbo-register-consul</module>
         <module>dubbo-metadata/dubbo-metadata-report-consul</module>
         <module>dubbo-configcenter/dubbo-configcenter-consul</module>
+        <module>dubbo-registry/dubbo-registry-etcd3</module>
     </modules>
 
     <dependencyManagement>

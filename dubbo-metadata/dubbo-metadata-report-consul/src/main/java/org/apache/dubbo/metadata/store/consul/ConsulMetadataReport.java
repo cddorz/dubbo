@@ -6,15 +6,20 @@ import com.ecwid.consul.v1.kv.model.GetValue;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
+import org.apache.dubbo.common.utils.NamedThreadFactory;
 import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.metadata.MappingChangedEvent;
+import org.apache.dubbo.metadata.MappingListener;
 import org.apache.dubbo.metadata.report.identifier.*;
 import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 import org.apache.dubbo.rpc.RpcException;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+
+import static java.util.concurrent.Executors.newCachedThreadPool;
+import static org.apache.dubbo.metadata.ServiceNameMapping.getAppNames;
 
 
 /**
@@ -30,7 +35,13 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
 
     private static final int INVALID_PORT = 0;
 
+    private static final String DEFAULT_MAPPING_GROUP = "mapping";
+
     private ConsulClient client;
+
+    private Map<String, MappingDataListener> casListenerMap = new ConcurrentHashMap<>();
+    private ExecutorService notifierExecutor = newCachedThreadPool(
+        new NamedThreadFactory("dubbo-consul-notifier", true));
 
 
     public ConsulMetadataReport(URL registryURL){
@@ -84,6 +95,30 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
         return getMetadata(metadataIdentifier);
     }
 
+
+    @Override
+    public Set<String> getServiceAppMapping(String serviceKey, MappingListener listener, URL url) {
+        String path = buildPath(DEFAULT_MAPPING_GROUP,serviceKey);
+        if(null == casListenerMap.get(serviceKey)){
+            MappingDataListener mappingDataListener = casListenerMap.computeIfAbsent(serviceKey, k -> new MappingDataListener(serviceKey));
+            mappingDataListener.addListener(listener);
+        }
+        ConsulNotifier consulNotifier = new ConsulNotifier(serviceKey);
+        notifierExecutor.submit(consulNotifier);
+        return getAppNames(getServiceAppNames(path));
+    }
+
+    @Override
+    public boolean registerServiceAppMapping(String key, String group, String content, Object ticket){
+        String path = buildPath(group,key);
+        client.setKVValue(path,content);
+        return true;
+    }
+
+    private String buildPath(String group,String key){
+        return group + "-" + key;
+    }
+
     private void storeMetadata(BaseMetadataIdentifier identifier, String v) {
         try {
             client.setKVValue(identifier.getUniqueKey(KeyTypeEnum.UNIQUE_KEY), v);
@@ -102,6 +137,14 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
         }
     }
 
+    private String getServiceAppNames(String key) {
+        Response<GetValue> value = client.getKVValue(key);
+        if (value != null && value.getValue() != null) {
+            return value.getValue().getDecodedValue();
+        }
+        return null;
+    }
+
     private String getMetadata(BaseMetadataIdentifier identifier) {
         try {
             Response<GetValue> value = client.getKVValue(identifier.getUniqueKey(KeyTypeEnum.UNIQUE_KEY));
@@ -112,6 +155,46 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
         } catch (Throwable t) {
             logger.error("Failed to get " + identifier + " from consul , cause: " + t.getMessage(), t);
             throw new RpcException("Failed to get " + identifier + " from consul , cause: " + t.getMessage(), t);
+        }
+    }
+
+
+    private static class MappingDataListener {
+
+        private String serviceKey;
+        private Set<MappingListener> listeners;
+
+        public MappingDataListener(String serviceKey) {
+            this.serviceKey = serviceKey;
+            this.listeners = new HashSet<>();
+        }
+
+        public void addListener(MappingListener listener) {
+            this.listeners.add(listener);
+        }
+    }
+
+    private class ConsulNotifier implements  Runnable{
+        private boolean running;
+        private MappingDataListener mappingListener;
+        String key;
+
+        public ConsulNotifier(String key){
+            this.mappingListener = casListenerMap.computeIfAbsent(key, k -> new MappingDataListener(key));
+            this.key = key;
+
+        }
+        @Override
+        public void run() {
+            while (this.running){
+                Set<String> apps = getAppNames(getServiceAppNames(key));
+                MappingChangedEvent event = new MappingChangedEvent(key,apps);
+                mappingListener.listeners.forEach(mappingListener -> mappingListener.onEvent(event));
+            }
+        }
+
+        public void stop(){
+            this.running = false;
         }
     }
 }

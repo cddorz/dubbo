@@ -99,6 +99,14 @@ public class MonoRedisClient extends AbstractRedisClient implements RedisClient 
     }
 
     @Override
+    public Long hdel(String key) {
+        Jedis jedis = jedisPool.getResource();
+        Long result = jedis.del(key);
+        jedis.close();
+        return result;
+    }
+
+    @Override
     public Set<String> scan(String pattern) {
         Jedis jedis = jedisPool.getResource();
         Set<String> result = super.scan(jedis, pattern);

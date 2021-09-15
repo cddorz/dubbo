@@ -5,7 +5,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.dubbo.common.URL;
 
-import org.apache.dubbo.registry.client.DefaultServiceInstance;
 import org.apache.dubbo.registry.client.ServiceInstance;
 import org.apache.dubbo.remoting.redis.RedisClient;
 import org.apache.dubbo.remoting.redis.jedis.ClusterRedisClient;
@@ -33,7 +32,7 @@ public class RedisClientUtil {
     }
 
     public static void registerServiceInstance(ServiceInstance serviceInstance,int expirePeriod){
-        String key = serviceInstance.getServiceName();
+        String key = serviceInstance.getServiceName() + "-" +  serviceInstance.getAddress();
         Gson gson = new GsonBuilder().create();
         String value = gson.toJson(serviceInstance);
         String expire = String.valueOf(System.currentTimeMillis() + expirePeriod);
@@ -42,10 +41,8 @@ public class RedisClientUtil {
     }
 
     public static void deregisterInstance(ServiceInstance serviceInstance){
-        String key = serviceInstance.getServiceName();
-        Gson gson = new GsonBuilder().create();
-        String value = gson.toJson(serviceInstance);
-        redisClient.hdel(key, value);
+        String key = serviceInstance.getServiceName() + "-" +  serviceInstance.getAddress();
+        redisClient.hdel(key);
         redisClient.publish(key, UNREGISTER);
     }
 

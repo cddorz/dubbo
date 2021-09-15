@@ -86,7 +86,11 @@ public class RedisDynamicConfiguration implements DynamicConfiguration {
                 notifier.start();
             }
         }
+    }
 
+    @Override
+    public void close(){
+        pool.close();
     }
 
     @Override

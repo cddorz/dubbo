@@ -92,6 +92,11 @@ public class ClusterRedisClient extends AbstractRedisClient implements RedisClie
     }
 
     @Override
+    public Long hdel(String key) {
+        return jedisCluster.del(key);
+    }
+
+    @Override
     public Set<String> scan(String pattern) {
         Map<String, JedisPool> nodes = jedisCluster.getClusterNodes();
         Set<String> result = new HashSet<>();
