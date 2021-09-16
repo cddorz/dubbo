@@ -3,7 +3,10 @@ package org.apache.dubbo.metadata.store.consul;
 import com.ecwid.consul.v1.ConsulClient;
 import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.kv.model.GetValue;
+import com.ecwid.consul.v1.kv.model.PutParams;
+
 import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.config.configcenter.ConfigItem;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
@@ -111,9 +114,28 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
     @Override
     public boolean registerServiceAppMapping(String key, String group, String content, Object ticket){
         String path = buildPath(group,key);
-        client.setKVValue(path,content);
+        PutParams putParams = new PutParams();
+        if(ticket != null){
+            Response<GetValue> value = client.getKVValue(path);
+            long cas = value.getValue().getModifyIndex();
+            putParams.setCas(cas);
+            client.setKVValue(path,content,putParams);
+        }else {
+            client.setKVValue(path,content);
+        }
         return true;
     }
+    @Override
+    public ConfigItem getConfigItem(String serviceKey, String group) {
+        String path = buildPath(group,serviceKey);
+        String content = null;
+        Response<GetValue> value = client.getKVValue(path);
+        if (value != null && value.getValue() != null) {
+            content = value.getValue().getDecodedValue();
+        }
+        return new ConfigItem(content,content);
+    }
+
 
     private String buildPath(String group,String key){
         return group + "-" + key;

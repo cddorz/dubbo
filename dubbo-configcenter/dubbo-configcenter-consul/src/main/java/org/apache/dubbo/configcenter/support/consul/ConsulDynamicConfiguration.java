@@ -3,6 +3,8 @@ package org.apache.dubbo.configcenter.support.consul;
 import com.ecwid.consul.v1.ConsulClient;
 import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.kv.model.GetValue;
+import com.ecwid.consul.v1.kv.model.PutParams;
+
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.config.configcenter.ConfigChangedEvent;
 import org.apache.dubbo.common.config.configcenter.ConfigItem;
@@ -115,8 +117,16 @@ public class ConsulDynamicConfiguration extends TreePathDynamicConfiguration {
     @Override
     public boolean publishConfigCas(String key, String group, String content, Object ticket) {
         String path = buildPathKey(group,key);
-        client.setKVValue(path,content);
-        return false;
+        PutParams putParams = new PutParams();
+        if(ticket != null){
+            Response<GetValue> value = client.getKVValue(path);
+            long cas = value.getValue().getModifyIndex();
+            putParams.setCas(cas);
+            client.setKVValue(path,content,putParams);
+        }else {
+            client.setKVValue(path,content);
+        }
+        return true;
     }
 
     @Override
