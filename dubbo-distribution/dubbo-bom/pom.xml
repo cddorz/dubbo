@@ -160,6 +160,11 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-registry-etcd3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
                 <artifactId>dubbo-registry-xds</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -260,6 +265,11 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-metadata-report-etcd3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
                 <artifactId>dubbo-metadata-processor</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -293,6 +303,11 @@
             <dependency>
                 <groupId>org.apache.dubbo</groupId>
                 <artifactId>dubbo-configcenter-consul</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-configcenter-etcd3</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

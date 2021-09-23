@@ -14,28 +14,25 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>org.apache.dubbo</groupId>
-        <artifactId>dubbo-parent</artifactId>
+        <artifactId>dubbo-metadata</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>dubbo-metadata</artifactId>
-    <packaging>pom</packaging>
-    <modules>
-        <module>dubbo-metadata-api</module>
-        <module>dubbo-metadata-definition-protobuf</module>
-        <module>dubbo-metadata-processor</module>
-        <module>dubbo-metadata-report-zookeeper</module>
-        <module>dubbo-metadata-report-redis</module>
-        <module>dubbo-metadata-report-nacos</module>
-        <module>dubbo-metadata-report-consul</module>
-        <module>dubbo-metadata-report-etcd3</module>
-    </modules>
-
+    <artifactId>dubbo-metadata-report-etcd3</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-metadata-api</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.etcd</groupId>
+            <artifactId>jetcd-core</artifactId>
+        </dependency>
+    </dependencies>
 </project>

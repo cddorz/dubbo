@@ -182,7 +182,7 @@ public class ConsulDynamicConfiguration extends TreePathDynamicConfiguration {
         return path;
     }
 
-    private static class ConfigurationDataListener {
+    private class ConfigurationDataListener {
 
         private String serviceKey;
         private Set<ConfigurationListener> listeners;
@@ -211,8 +211,12 @@ public class ConsulDynamicConfiguration extends TreePathDynamicConfiguration {
         public void run() {
             while (this.running){
                 String key = pathToKey(path);
-                ConfigChangedEvent event = new ConfigChangedEvent(key, getGroup(path), getConfig(key,getGroup(path)));
-                configurationDataLisentner.listeners.forEach(listener -> listener.process(event));
+                try {
+                    ConfigChangedEvent event = new ConfigChangedEvent(key, getGroup(path), doGetConfig(path));
+                    configurationDataLisentner.listeners.forEach(listener -> listener.process(event));
+                } catch (Throwable r) {
+                    throw new RuntimeException(r.getMessage(),r);
+                }
             }
         }
 
