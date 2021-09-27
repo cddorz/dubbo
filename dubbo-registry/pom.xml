@@ -41,5 +41,6 @@
         <module>dubbo-registry-redis</module>
         <module>dubbo-register-consul</module>
         <module>dubbo-registry-etcd3</module>
+        <module>dubbo-registry-eureka</module>
     </modules>
 </project>
