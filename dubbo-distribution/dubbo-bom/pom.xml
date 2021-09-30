@@ -165,7 +165,7 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.dubbo</groupId>
-                <artifactId>dubbo-registry-erueka</artifactId>
+                <artifactId>dubbo-registry-eureka</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

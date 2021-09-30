@@ -152,15 +152,6 @@
         <module>dubbo-metadata</module>
         <module>dubbo-build-tools</module>
         <module>dubbo-spring-boot</module>
-        <module>dubbo-metadata/dubbo-metadata-report-apollo</module>
-        <module>dubbo-registry/dubbo-register-consul</module>
-        <module>dubbo-metadata/dubbo-metadata-report-consul</module>
-        <module>dubbo-configcenter/dubbo-configcenter-consul</module>
-        <module>dubbo-registry/dubbo-registry-etcd3</module>
-        <module>dubbo-remoting/dubbo-remoting-etcd3</module>
-        <module>dubbo-metadata/dubbo-metadata-report-etcd3</module>
-        <module>dubbo-configcenter/dubbo-configcenter-etcd3</module>
-        <module>dubbo-registry/dubbo-registry-erueka</module>
     </modules>
 
     <dependencyManagement>
