@@ -32,7 +32,7 @@ public class RedisClientUtil {
     }
 
     public static void registerServiceInstance(ServiceInstance serviceInstance,int expirePeriod){
-        String key = serviceInstance.getServiceName() + "-" +  serviceInstance.getAddress();
+        String key = serviceInstance.getServiceName();
         Gson gson = new GsonBuilder().create();
         String value = gson.toJson(serviceInstance);
         String expire = String.valueOf(System.currentTimeMillis() + expirePeriod);
@@ -41,7 +41,7 @@ public class RedisClientUtil {
     }
 
     public static void deregisterInstance(ServiceInstance serviceInstance){
-        String key = serviceInstance.getServiceName() + "-" +  serviceInstance.getAddress();
+        String key = serviceInstance.getServiceName();
         redisClient.hdel(key);
         redisClient.publish(key, UNREGISTER);
     }

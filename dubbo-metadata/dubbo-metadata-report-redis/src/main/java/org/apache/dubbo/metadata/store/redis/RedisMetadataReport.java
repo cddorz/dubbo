@@ -23,6 +23,7 @@ import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.metadata.MappingChangedEvent;
 import org.apache.dubbo.metadata.MappingListener;
+import org.apache.dubbo.metadata.MetadataInfo;
 import org.apache.dubbo.metadata.report.identifier.BaseMetadataIdentifier;
 import org.apache.dubbo.metadata.report.identifier.KeyTypeEnum;
 import org.apache.dubbo.metadata.report.identifier.MetadataIdentifier;
@@ -31,6 +32,8 @@ import org.apache.dubbo.metadata.report.identifier.SubscriberMetadataIdentifier;
 import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 import org.apache.dubbo.rpc.RpcException;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.*;
 
@@ -57,6 +60,7 @@ public class RedisMetadataReport extends AbstractMetadataReport {
     JedisPool pool;
     Set<HostAndPort> jedisClusterNodes;
     private String password;
+    private Gson gson = new GsonBuilder().create();
     private int timeout;
     private final static String SERVICE_APP_MAPPING = "mapping";
 
@@ -121,6 +125,26 @@ public class RedisMetadataReport extends AbstractMetadataReport {
             return Collections.emptyList();
         }
         return new ArrayList<String>(Arrays.asList(URL.decode(content)));
+    }
+
+    @Override
+    public void publishAppMetadata(SubscriberMetadataIdentifier identifier, MetadataInfo metadataInfo){
+        String content = gson.toJson(metadataInfo);
+        try (Jedis jedis = pool.getResource()) {
+            jedis.set(identifier.getApplication() + identifier.getRevision(),content);
+        }catch (Throwable t){
+            throw new RpcException(t.getMessage(),t);
+        }
+    }
+
+    @Override
+    public MetadataInfo getAppMetadata(SubscriberMetadataIdentifier identifier, Map<String, String> instanceMetadata){
+        try (Jedis jedis = pool.getResource()){
+            String content = jedis.get(identifier.getApplication() + identifier.getRevision());
+            return gson.fromJson(content,MetadataInfo.class);
+        }catch (Throwable t){
+            throw new RpcException(t.getMessage(),t);
+        }
     }
 
     @Override

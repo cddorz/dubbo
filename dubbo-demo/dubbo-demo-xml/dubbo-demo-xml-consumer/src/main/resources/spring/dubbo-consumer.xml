@@ -24,9 +24,9 @@
     <dubbo:application name="demo-consumer">
     </dubbo:application>
 
-    <dubbo:metadata-report address="zookeeper://127.0.0.1:2181"/>
+    <dubbo:metadata-report address="redis://114.215.197.62:6379"/>
 
-    <dubbo:registry address="zookeeper://127.0.0.1:2181?registry-type=service"/>
+    <dubbo:registry address="redis://114.215.197.62:6379?registry-type=service"/>
 
     <dubbo:reference id="demoService" check="false"
                      interface="org.apache.dubbo.demo.DemoService"/>
