@@ -57,11 +57,11 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         Properties properties = buildEurekaConfigProperties(registryURL);
         initConfigurationManager(properties);
         this.registryURL = registryURL;
+        initEurekaClient(registryURL);
     }
 
     @Override
     public void doRegister(ServiceInstance serviceInstance) throws RuntimeException {
-        initEurekaClient(serviceInstance);
         setInstanceStatus(InstanceInfo.InstanceStatus.UP);
     }
 
@@ -189,16 +189,16 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         ConfigurationManager.loadProperties(eurekaConfigProperties);
     }
 
-    private void initApplicationInfoManager(ServiceInstance serviceInstance) {
-        EurekaInstanceConfig eurekaInstanceConfig = buildEurekaInstanceConfig(serviceInstance);
+    private void initApplicationInfoManager(URL registryURL) {
+        EurekaInstanceConfig eurekaInstanceConfig = buildEurekaInstanceConfig(registryURL);
         this.applicationInfoManager = new ApplicationInfoManager(eurekaInstanceConfig, (ApplicationInfoManager.OptionalArgs) null);
     }
 
-    private void initEurekaClient(ServiceInstance serviceInstance) {
+    private void initEurekaClient(URL registryURL) {
         if (eurekaClient != null) {
             return;
         }
-        initApplicationInfoManager(serviceInstance);
+        initApplicationInfoManager(registryURL);
         EurekaClient eurekaClient = createEurekaClient();
         // set eurekaClient
         this.eurekaClient = eurekaClient;
@@ -217,13 +217,12 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         return serviceInstance;
     }
 
-    private EurekaInstanceConfig buildEurekaInstanceConfig(ServiceInstance serviceInstance) {
+    private EurekaInstanceConfig buildEurekaInstanceConfig(URL registryURL) {
         ConfigurableEurekaInstanceConfig eurekaInstanceConfig = new ConfigurableEurekaInstanceConfig()
-                .setInstanceId(serviceInstance.getAddress())
-                .setAppname(serviceInstance.getServiceName())
-                .setIpAddress(serviceInstance.getHost())
-                .setNonSecurePort(serviceInstance.getPort())
-                .setMetadataMap(serviceInstance.getMetadata());
+                .setInstanceId(registryURL.getAddress())
+                .setAppname(registryURL.getApplication())
+                .setIpAddress(registryURL.getHost())
+                .setNonSecurePort(registryURL.getPort());
         return eurekaInstanceConfig;
     }
 
