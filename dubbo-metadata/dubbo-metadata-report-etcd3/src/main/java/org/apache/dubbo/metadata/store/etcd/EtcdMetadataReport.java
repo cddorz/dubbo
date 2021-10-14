@@ -8,6 +8,7 @@ import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.metadata.MappingChangedEvent;
 import org.apache.dubbo.metadata.MappingListener;
+import org.apache.dubbo.metadata.MetadataInfo;
 import org.apache.dubbo.metadata.report.identifier.BaseMetadataIdentifier;
 import org.apache.dubbo.metadata.report.identifier.KeyTypeEnum;
 import org.apache.dubbo.metadata.report.identifier.MetadataIdentifier;
@@ -16,6 +17,7 @@ import org.apache.dubbo.metadata.report.identifier.SubscriberMetadataIdentifier;
 import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 import org.apache.dubbo.rpc.RpcException;
 
+import com.google.gson.Gson;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
 import io.etcd.jetcd.KV;
@@ -52,6 +54,8 @@ public class EtcdMetadataReport extends AbstractMetadataReport {
 
     private Client client;
     private KV kvClient;
+
+    private Gson gson;
 
     private Map<String, Watch.Watcher> watcherMap = new ConcurrentHashMap<>();
 
@@ -98,6 +102,28 @@ public class EtcdMetadataReport extends AbstractMetadataReport {
     @Override
     protected void doStoreConsumerMetadata(MetadataIdentifier consumerMetadataIdentifier, String serviceParameterString) {
         storeMetadata(consumerMetadataIdentifier,serviceParameterString);
+    }
+
+    @Override
+    public void publishAppMetadata(SubscriberMetadataIdentifier identifier, MetadataInfo metadataInfo){
+        String content = gson.toJson(metadataInfo);
+        try {
+            kvClient.put(bytesOf(identifier.getApplication() + "-" + identifier.getRevision()),bytesOf(content)).get();
+        }catch (Throwable e){
+            throw new RpcException(e.getMessage(),e);
+        }
+    }
+
+    @Override
+    public MetadataInfo getAppMetadata(SubscriberMetadataIdentifier identifier, Map<String, String> instanceMetadata){
+        try {
+            CompletableFuture<GetResponse> getFuture = kvClient.get(bytesOf(identifier.getApplication() + "-" + identifier.getRevision()));
+            GetResponse response = getFuture.get();
+            String string = response.getKvs().get(0).getValue().toString(UTF_8);
+            return gson.fromJson(string,MetadataInfo.class);
+        }catch (Throwable e){
+            throw new RpcException(e.getMessage(),e);
+        }
     }
 
     @Override

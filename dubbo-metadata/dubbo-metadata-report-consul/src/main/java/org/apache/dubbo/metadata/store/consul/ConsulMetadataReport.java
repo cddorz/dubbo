@@ -4,6 +4,7 @@ import com.ecwid.consul.v1.ConsulClient;
 import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.kv.model.GetValue;
 import com.ecwid.consul.v1.kv.model.PutParams;
+import com.google.gson.Gson;
 
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.config.configcenter.ConfigItem;
@@ -13,6 +14,7 @@ import org.apache.dubbo.common.utils.NamedThreadFactory;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.metadata.MappingChangedEvent;
 import org.apache.dubbo.metadata.MappingListener;
+import org.apache.dubbo.metadata.MetadataInfo;
 import org.apache.dubbo.metadata.report.identifier.*;
 import org.apache.dubbo.metadata.report.support.AbstractMetadataReport;
 import org.apache.dubbo.rpc.RpcException;
@@ -39,6 +41,8 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
     private static final int INVALID_PORT = 0;
 
     private static final String DEFAULT_MAPPING_GROUP = "mapping";
+
+    private Gson gson;
 
     private ConsulClient client;
 
@@ -96,6 +100,22 @@ public class ConsulMetadataReport extends AbstractMetadataReport {
     @Override
     public String getServiceDefinition(MetadataIdentifier metadataIdentifier) {
         return getMetadata(metadataIdentifier);
+    }
+
+    @Override
+    public void publishAppMetadata(SubscriberMetadataIdentifier identifier, MetadataInfo metadataInfo){
+        String content = gson.toJson(metadataInfo);
+        client.setKVValue(identifier.getApplication() + "-" + identifier.getRevision(),content);
+    }
+
+    @Override
+    public MetadataInfo getAppMetadata(SubscriberMetadataIdentifier identifier, Map<String, String> instanceMetadata){
+        Response<GetValue> value = client.getKVValue(identifier.getApplication() + "-" + identifier.getRevision());
+        if (value != null && value.getValue() != null) {
+            String content = value.getValue().getValue();
+            return gson.fromJson(content, MetadataInfo.class);
+        }
+        return null;
     }
 
 

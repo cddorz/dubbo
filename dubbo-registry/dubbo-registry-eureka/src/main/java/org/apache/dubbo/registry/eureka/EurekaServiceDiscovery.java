@@ -57,12 +57,12 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         Properties properties = buildEurekaConfigProperties(registryURL);
         initConfigurationManager(properties);
         this.registryURL = registryURL;
-        initEurekaClient(registryURL);
     }
 
     @Override
     public void doRegister(ServiceInstance serviceInstance) throws RuntimeException {
         setInstanceStatus(InstanceInfo.InstanceStatus.UP);
+        initEurekaClient(serviceInstance);
     }
 
     @Override
@@ -83,7 +83,7 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
 
     @Override
     public Set<String> getServices() {
-        Applications applications = eurekaClient.getApplications();
+        Applications applications = this.eurekaClient.getApplications();
         if(applications == null){
             return Collections.emptySet();
         }
@@ -105,7 +105,7 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
 
     @Override
     public List<ServiceInstance> getInstances(String serviceName) throws NullPointerException {
-        Application application = eurekaClient.getApplication(serviceName);
+        Application application = this.eurekaClient.getApplication(serviceName);
 
         if(application == null){
             return emptyList();
@@ -189,18 +189,18 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         ConfigurationManager.loadProperties(eurekaConfigProperties);
     }
 
-    private void initApplicationInfoManager(URL registryURL) {
-        EurekaInstanceConfig eurekaInstanceConfig = buildEurekaInstanceConfig(registryURL);
+    private void initApplicationInfoManager(ServiceInstance serviceInstance) {
+        EurekaInstanceConfig eurekaInstanceConfig = buildEurekaInstanceConfig(serviceInstance);
         this.applicationInfoManager = new ApplicationInfoManager(eurekaInstanceConfig, (ApplicationInfoManager.OptionalArgs) null);
     }
 
-    private void initEurekaClient(URL registryURL) {
+    private void initEurekaClient(ServiceInstance serviceInstance) {
         if (eurekaClient != null) {
             return;
         }
-        initApplicationInfoManager(registryURL);
+        initApplicationInfoManager(serviceInstance);
         EurekaClient eurekaClient = createEurekaClient();
-        // set eurekaClient
+
         this.eurekaClient = eurekaClient;
     }
 
@@ -217,12 +217,13 @@ public class EurekaServiceDiscovery extends AbstractServiceDiscovery {
         return serviceInstance;
     }
 
-    private EurekaInstanceConfig buildEurekaInstanceConfig(URL registryURL) {
+    private EurekaInstanceConfig buildEurekaInstanceConfig(ServiceInstance serviceInstance) {
         ConfigurableEurekaInstanceConfig eurekaInstanceConfig = new ConfigurableEurekaInstanceConfig()
-                .setInstanceId(registryURL.getAddress())
-                .setAppname(registryURL.getApplication())
-                .setIpAddress(registryURL.getHost())
-                .setNonSecurePort(registryURL.getPort());
+                .setInstanceId(serviceInstance.getAddress())
+                .setAppname(serviceInstance.getServiceName())
+                .setIpAddress(serviceInstance.getHost())
+                .setNonSecurePort(serviceInstance.getPort())
+                .setMetadataMap(serviceInstance.getMetadata());
         return eurekaInstanceConfig;
     }
 
